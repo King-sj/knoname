@@ -181,7 +181,7 @@
 	"connect_characters": ["diy"],
 	"connect_cards": ["huodong", "guozhan", "sp", "zhulu", "yingbian", "yongjian", "xianxia"],
 	"plays": [],
-	"extensions": ["十周年UI"],
+	"extensions": ["十周年UI", "freeguozhan"],
 	"banned": [],
 	"bannedcards": [],
 	"forbidlist": [],
