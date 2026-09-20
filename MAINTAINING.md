@@ -58,9 +58,14 @@ git rebase --continue
 
 扩展是仓库里的一批**新目录**，同步上游时属于纯新增，不会产生冲突，是改动时最省心的一种形式。
 
-不过 `apps/core/.gitignore` 对扩展是**白名单**式的：`extension/**` 整体忽略，再逐个 `!extension/<扩展名>/**` 放行上游那 8 个扩展。**新建的扩展不在白名单里，默认不会被提交**——`git add` 会静默跳过，`git ls-files` 里一条都看不到。要让一个自建扩展进入版本控制，得先在 `apps/core/.gitignore` 里补一条对应的 `!` 放行。
+不过 `apps/core/.gitignore` 对扩展是**白名单**式的：`extension/**` 整体忽略，再逐个放行。上游那 8 个扩展写的是 `!extension/<扩展名>/**` 一条，但**这一条对新建目录不起作用**——父目录被 `extension/**` 排除后，Git 不会再进入该目录，子文件的 `!` 规则也就无从匹配（`git check-ignore -v` 会显示命中 `extension/**`）。自建扩展要进版本控制，得写**两条**：
 
-当前 `apps/core/extension/十周年UI/` 未加白名单，因而不在本仓库的版本控制之内，也不会随 `origin` 备份，它的备份需要另行安排。
+```
+!extension/<扩展名>/
+!extension/<扩展名>/**
+```
+
+第一行重新包含目录本身，第二行放行目录内容。`apps/core/extension/freeguozhan/` 按这个写法加入，`apps/core/extension/十周年UI/` 未加白名单，因而不在本仓库的版本控制之内，也不会随 `origin` 备份，它的备份需要另行安排。
 
 确实需要改上游源码时，改动尽量集中在一处，并记录到下面的清单里，方便同步冲突时判断取舍。
 
@@ -68,7 +73,8 @@ git rebase --continue
 
 | 文件 / 目录 | 改动 | 原因 |
 | --- | --- | --- |
-| `apps/core/game/config.json` | 默认启用的武将包只保留一部分；`extensions` 默认启用十周年UI | 个人游玩偏好 |
+| `apps/core/game/config.json` | 默认启用的武将包只保留一部分；`extensions` 默认启用十周年UI、freeguozhan | 个人游玩偏好 |
+| `apps/core/.gitignore` | 新增 `!extension/freeguozhan/` 与 `!extension/freeguozhan/**` 两条白名单 | 让自建的自由国战扩展进入版本控制 |
 | `apps/core/character/collab/skill.js`<br>`apps/core/character/collab/translate.js` | 魂五虎（虎翼）的技能实现与描述 | 个人对技能效果的调整 |
 | `apps/core/character/xianding/skill.js` | 谋骆统（抗明）：无法对使用者使用的牌改为对自己使用 | 修复这类牌选不了、用不出的问题 |
 | `apps/mobile/capacitor.config.ts` | `SystemBars.hidden` 隐藏系统栏 | Android 15+ 强制 edge-to-edge 下状态栏覆盖 WebView 并拦截点击 |
