@@ -8170,7 +8170,7 @@ const skills = {
 					for (const skill of skills) {
 						list.push([skill, '<div class="popup text" style="width:calc(100% - 10px);display:inline-block"><div class="skill">【' + get.translation(skill) + "】</div><div>" + lib.translate[skill + "_info"] + "</div></div>"]);
 					}
-					const next = player.chooseButton(['###虎翼###<div class="text center">你可以弃置任意个技能，然后摸等量张牌，并亮出牌堆顶X+2张牌（X为你弃置的技能数）以任意顺序置于牌堆顶</div>', [list, "textbutton"]]);
+					const next = player.chooseButton(['###虎翼###<div class="text center">你可以弃置任意个技能，然后亮出牌堆顶X+2张牌（X为你弃置的技能数），从中选择X张获得，其余以任意顺序置于牌堆顶</div>', [list, "textbutton"]]);
 					next.set("selectButton", [1, skills.length]);
 					next.set("ai", button => {
 						const info = get.info("olhuyi");
@@ -8197,14 +8197,34 @@ const skills = {
 				},
 				async content(event, trigger, player) {
 					const skills = event.cost_data;
+					const num = skills.length;
 					await get.info("olhuyi").removeGainedSkills(player, skills);
-					await player.draw(skills.length);
-					const cards = get.cards(skills.length + 2, true);
+					const cards = get.cards(num + 2, true);
 					await game.cardsGotoOrdering(cards);
+					const { bool, links } = await player
+						.chooseCardButton({
+							prompt: `虎翼：从亮出的${cards.length}张牌中选择${num}张获得`,
+							cards,
+							select: num,
+							forced: true,
+							ai(button) {
+								return get.value(button.link, get.event().player);
+							},
+						})
+						.forResult();
+					if (!bool || !links?.length) {
+						await game.cardsGotoPile(cards.slice().reverse(), "insert");
+						return;
+					}
+					await player.gain(links, "draw");
+					const rest = cards.filter(card => !links.includes(card));
+					if (!rest.length) {
+						return;
+					}
 					const result = await player
 						.chooseToMove(true)
-						.set("prompt", "虎翼：将牌以任意顺序置于牌堆顶（左为上）")
-						.set("list", [["牌堆顶", cards]])
+						.set("prompt", "虎翼：将剩余的牌以任意顺序置于牌堆顶（左为上）")
+						.set("list", [["牌堆顶", rest]])
 						.set("reverse", _status.currentPhase?.next && get.attitude(player, _status.currentPhase.next) > 0)
 						.set("processAI", list => {
 							const player = get.event().player;
