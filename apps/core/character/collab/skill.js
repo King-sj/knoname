@@ -8015,6 +8015,76 @@ const skills = {
 				});
 		},
 		prioritySkills: ["boss_juejing", "xinlonghun", "relonghun", "sbwusheng", "jsrgnianen", "jsrgguanjue", "shencai", "sbpaoxiao", "sbliegong", "pshengwu"],
+		//失去以此技能获得的技能
+		async removeGainedSkills(player, skills) {
+			if (!skills?.length) {
+				return;
+			}
+			await player.changeSkills([], skills).set("$handle", (player, addSkills, removeSkills) => {
+				game.log(
+					player,
+					"失去了技能",
+					...removeSkills.map(i => {
+						return "#g【" + get.translation(i) + "】";
+					})
+				);
+				player.removeSkill(removeSkills);
+				const additionalSkills = player.additionalSkills.olhuyi;
+				additionalSkills.removeArray(removeSkills);
+				if (!additionalSkills.length) {
+					delete player.additionalSkills.olhuyi;
+				}
+			});
+		},
+		//获得的技能与其他技能重名时，可以弃置其中一个并摸一张牌
+		async handleDuplicate(player, skill) {
+			if (!skill || !player.additionalSkills.olhuyi?.includes(skill)) {
+				return;
+			}
+			const name = get.translation(skill);
+			const sameName = player.getSkills(null, false, false).filter(current => {
+				const info = get.info(current);
+				if (current == skill || !info || info.sub || info.sourceSkill || info.charlotte || info.hiddenSkill) {
+					return false;
+				}
+				return get.translation(current) == name;
+			});
+			if (!sameName.length) {
+				return;
+			}
+			const removable = [skill, ...sameName].filter(current => player.additionalSkills.olhuyi.includes(current));
+			let result;
+			if (removable.length > 1) {
+				const list = removable.map(current => [current, '<div class="popup text" style="width:calc(100% - 10px);display:inline-block"><div class="skill">【' + get.translation(current) + "】</div><div>" + get.skillInfoTranslation(current, player, false) + "</div></div>"]);
+				const { bool, links } = await player
+					.chooseButton([`虎翼：弃置其中一个【${name}】并摸一张牌？`, [list, "textbutton"]])
+					.set("removable", removable)
+					.set("ai", button => {
+						//弃置收益更低的同名技能
+						const skill = button.link;
+						return get.event().removable.filter(current => current != skill).every(current => get.skillRank(skill, "in") <= get.skillRank(current, "in")) ? 2 : 1;
+					})
+					.forResult();
+				result = { bool, skills: links };
+			} else {
+				const { bool } = await player
+					.chooseBool(`虎翼：是否弃置【${name}】并摸一张牌？`)
+					.set("skill", skill)
+					.set("others", sameName)
+					.set("ai", () => {
+						//仅在获得的技能不优于同名技能时弃置
+						const { skill, others } = get.event();
+						return others.every(current => get.skillRank(skill, "in") <= get.skillRank(current, "in"));
+					})
+					.forResult();
+				result = { bool, skills: removable };
+			}
+			if (!result.bool || !result.skills?.length) {
+				return;
+			}
+			await get.info("olhuyi").removeGainedSkills(player, result.skills);
+			await player.draw();
+		},
 		trigger: {
 			global: "phaseBefore",
 			player: ["enterGame", "useCardAfter", "respondAfter"],
@@ -8083,7 +8153,8 @@ const skills = {
 						.filter(skill => !player.hasSkill(skill, null, null, false))
 						.randomGets(1)
 				: event.cost_data;
-			player.addAdditionalSkills("olhuyi", skill, true);
+			await player.addAdditionalSkills("olhuyi", skill, true);
+			await get.info("olhuyi").handleDuplicate(player, skill[0]);
 		},
 		group: "olhuyi_remove",
 		subSkill: {
@@ -8099,19 +8170,23 @@ const skills = {
 					for (const skill of skills) {
 						list.push([skill, '<div class="popup text" style="width:calc(100% - 10px);display:inline-block"><div class="skill">【' + get.translation(skill) + "】</div><div>" + lib.translate[skill + "_info"] + "</div></div>"]);
 					}
-					const next = player.chooseButton(['###虎翼###<div class="text center">你可以失去其中一个技能，然后观看一名牌堆顶三张牌并获得其中一张</div>', [list, "textbutton"]]);
+					const next = player.chooseButton(['###虎翼###<div class="text center">你可以弃置任意个技能，然后摸等量张牌，并亮出牌堆顶X+2张牌（X为你弃置的技能数）以任意顺序置于牌堆顶</div>', [list, "textbutton"]]);
+					next.set("selectButton", [1, skills.length]);
 					next.set("ai", button => {
-						const player = get.player();
-						const skill = button.link;
-						let skills = get.event().skills.slice(0);
-						skills.removeArray(get.info("olhuyi").prioritySkills);
+						const info = get.info("olhuyi");
+						if (info.prioritySkills.includes(button.link)) {
+							return 0;
+						}
+						//弃置收益最低的技能，保留至多三个非优先技能
+						const skills = get.event().skills.filter(skill => !info.prioritySkills.includes(skill));
 						if (skills.length < 4) {
 							return 0;
 						}
-						if (skills.includes(skill)) {
-							return 2;
-						}
-						return Math.random();
+						const discards = skills
+							.slice(0)
+							.sort((a, b) => get.skillRank(a, "in") - get.skillRank(b, "in"))
+							.slice(0, skills.length - 3);
+						return discards.includes(button.link) ? 1 : 0;
 					});
 					next.set("skills", skills);
 					const { bool, links } = await next.forResult();
@@ -8121,28 +8196,27 @@ const skills = {
 					};
 				},
 				async content(event, trigger, player) {
-					player.changeSkills([], event.cost_data).set("$handle", (player, addSkills, removeSkills) => {
-						game.log(
-							player,
-							"失去了技能",
-							...removeSkills.map(i => {
-								return "#g【" + get.translation(i) + "】";
-							})
-						);
-						player.removeSkill(removeSkills);
-						const additionalSkills = player.additionalSkills.olhuyi;
-						additionalSkills.removeArray(removeSkills);
-						if (!additionalSkills.length) {
-							delete player.additionalSkills.olhuyi;
-						}
-					});
-					const cards = get.cards(3, true);
-					const { links: gains } = await player
-						.chooseButton(["虎翼：选择获得其中一张牌", cards], true)
-						.set("ai", button => get.value(button.link))
+					const skills = event.cost_data;
+					await get.info("olhuyi").removeGainedSkills(player, skills);
+					await player.draw(skills.length);
+					const cards = get.cards(skills.length + 2, true);
+					await game.cardsGotoOrdering(cards);
+					const result = await player
+						.chooseToMove(true)
+						.set("prompt", "虎翼：将牌以任意顺序置于牌堆顶（左为上）")
+						.set("list", [["牌堆顶", cards]])
+						.set("reverse", _status.currentPhase?.next && get.attitude(player, _status.currentPhase.next) > 0)
+						.set("processAI", list => {
+							const player = get.event().player;
+							const cards = list[0][1].slice(0);
+							cards.sort((a, b) => (_status.event.reverse ? 1 : -1) * (get.value(b, player) - get.value(a, player)));
+							return [cards];
+						})
 						.forResult();
-					if (gains?.length) {
-						await player.gain(gains, "draw");
+					if (result.bool) {
+						const top = result.moved[0].reverse();
+						await game.cardsGotoPile(top, "insert");
+						game.log(player, "将", top, "置于了牌堆顶");
 					}
 				},
 			},
