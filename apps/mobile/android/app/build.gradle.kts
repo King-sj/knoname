@@ -1,3 +1,6 @@
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.Properties
 
 val signingProperties = Properties()
@@ -34,8 +37,9 @@ android {
         applicationId = "com.libnoname.noname"
         minSdk = rootProject.extra["minSdkVersion"] as Int
         targetSdk = rootProject.extra["targetSdkVersion"] as Int
-        versionCode = 1
-        versionName = "1.0"
+        // 版本号取构建时刻，保证每次构建都递增、可直接覆盖安装
+        versionCode = (System.currentTimeMillis() / 1000L).toInt()
+        versionName = SimpleDateFormat("yyyyMMdd.HHmm", Locale.US).format(Date())
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
