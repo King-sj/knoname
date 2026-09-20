@@ -6,6 +6,9 @@ const config: CapacitorConfig = {
 	webDir: "../../dist",
 	plugins: {
 		App: {},
+		SystemBars: {
+			hidden: true,
+		},
 	},
 };
 
