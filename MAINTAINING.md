@@ -68,9 +68,11 @@ git rebase --continue
 
 | 文件 / 目录 | 改动 | 原因 |
 | --- | --- | --- |
-| `apps/core/game/config.json` | 默认启用的武将包只保留一部分 | 个人游玩偏好 |
+| `apps/core/game/config.json` | 默认启用的武将包只保留一部分；`extensions` 默认启用十周年UI | 个人游玩偏好 |
 | `apps/core/character/collab/skill.js`<br>`apps/core/character/collab/translate.js` | 魂五虎（虎翼）的技能实现与描述 | 个人对技能效果的调整 |
 | `apps/core/character/xianding/skill.js` | 谋骆统（抗明）：无法对使用者使用的牌改为对自己使用 | 修复这类牌选不了、用不出的问题 |
+| `apps/mobile/capacitor.config.ts` | `SystemBars.hidden` 隐藏系统栏 | Android 15+ 强制 edge-to-edge 下状态栏覆盖 WebView 并拦截点击 |
+| `apps/mobile/android/app/build.gradle.kts` | versionCode/versionName 取构建时刻 | 每次构建版本号递增，可直接覆盖安装 |
 
 `apps/core/extension/` 下的自建扩展不在此列——它们默认被 gitignore 忽略，见上一节。
 
