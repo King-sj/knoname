@@ -14,7 +14,9 @@
 | `main` | 上游镜像。只做 fast-forward，**不放任何自己的改动** |
 | `custom` | 自己的版本，所有改动都在这里 |
 
-`main` 保持与上游完全一致，是为了让 `git diff upstream/main..custom` 永远只显示「我改了什么」，也为了让同步永远是一次干净的快进。
+`main` 保持与上游完全一致，是为了让 `git diff main..custom` 永远只显示「我改了什么」，也为了让同步永远是一次干净的快进。
+
+自查改动一律以 `main` 为基准。`git diff upstream/main..custom` 只在 custom 已 rebase 到最新上游时才与之等价；一旦 custom 落后于上游（还没同步），上游那几个新提交会被**反向**显示成「我删掉了这些代码」，凭空多出一批并不存在的改动。
 
 ## 日常：同步上游
 
@@ -52,9 +54,13 @@ git rebase --continue
 **优先写成扩展**，放在 `apps/core/extension/<扩展名>/`：
 
 - 最简参考：`apps/core/extension/boss/extension.js`（单文件形式）
-- 模板：`scripts/extension-template/`（TypeScript + vite）
+- 模板：`scripts/extension-template/`（`default` 与 `vue` 两套，TypeScript + vite）
 
-扩展是仓库里的一批**新目录**，同步上游时属于纯新增，不会产生冲突。这是本仓库主要的改动形式。
+扩展是仓库里的一批**新目录**，同步上游时属于纯新增，不会产生冲突，是改动时最省心的一种形式。
+
+不过 `apps/core/.gitignore` 对扩展是**白名单**式的：`extension/**` 整体忽略，再逐个 `!extension/<扩展名>/**` 放行上游那 8 个扩展。**新建的扩展不在白名单里，默认不会被提交**——`git add` 会静默跳过，`git ls-files` 里一条都看不到。要让一个自建扩展进入版本控制，得先在 `apps/core/.gitignore` 里补一条对应的 `!` 放行。
+
+当前 `apps/core/extension/十周年UI/` 未加白名单，因而不在本仓库的版本控制之内，也不会随 `origin` 备份，它的备份需要另行安排。
 
 确实需要改上游源码时，改动尽量集中在一处，并记录到下面的清单里，方便同步冲突时判断取舍。
 
@@ -62,8 +68,17 @@ git rebase --continue
 
 | 文件 / 目录 | 改动 | 原因 |
 | --- | --- | --- |
-| `apps/core/extension/` | 自建扩展 | 见各扩展目录 |
-| （按需补充） | | |
+| `apps/core/game/config.json` | 默认启用的武将包只保留一部分 | 个人游玩偏好 |
+| `apps/core/character/collab/skill.js`<br>`apps/core/character/collab/translate.js` | 魂五虎（虎翼）的技能实现与描述 | 个人对技能效果的调整 |
+| `apps/core/character/xianding/skill.js` | 谋骆统（抗明）：无法对使用者使用的牌改为对自己使用 | 修复这类牌选不了、用不出的问题 |
+
+`apps/core/extension/` 下的自建扩展不在此列——它们默认被 gitignore 忽略，见上一节。
+
+查询当前改动全貌：
+
+```bash
+git diff main..custom
+```
 
 ## 新机器初始化
 
@@ -116,4 +131,4 @@ done
 
 中途某段失败只需重跑该段，服务器上已推成功的那部分对象会保留，不会白传。
 
-**`noname-server.exe` 约 67 MB**，超过 GitHub 建议的 50 MB，但低于 100 MB 的硬限制。推送时会收到 `GH001: Large files detected` 警告，属于正常现象，忽略即可——上游仓库同样如此，也没有使用 LFS。
+**`noname-server.exe` 最大的一个版本约 86 MB**（`scripts/noname-server.exe`，历史里另留有 67 MB、80 MB 等多个旧版本），超过 GitHub 建议的 50 MB，但低于 100 MB 的硬限制——余量只有 14 MB，往历史里再加大文件前先掂量一下。推送时会收到 `GH001: Large files detected` 警告，属于正常现象，忽略即可——上游仓库同样如此，也没有使用 LFS。
