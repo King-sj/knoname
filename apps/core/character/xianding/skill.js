@@ -15396,12 +15396,19 @@ const skills = {
 				.map(evt => evt.cards)
 				.flat();
 			const viewAs = card => get.autoViewAs({ name: get.name(card), nature: get.nature(card), suit: get.suit(card), number: get.number(card), isCard: true });
+			//无法对使用者使用的牌（如【无中生有】）改为对自己使用
+			const getTarget = card => {
+				const vcard = viewAs(card);
+				if (player.canUse(vcard, trigger.player, false)) {
+					return trigger.player;
+				}
+				return player.canUse(vcard, player, false) ? player : null;
+			};
 			const canUse = player.getCards("h", card => {
 				if (shown.includes(card) || (get.name(card) !== "sha" && get.type(card) !== "trick")) {
 					return false;
 				}
-				const vcard = viewAs(card);
-				return player.canUse(vcard, trigger.player, false);
+				return getTarget(card) != null;
 			});
 			const result =
 				canUse.length > 0
@@ -15414,7 +15421,7 @@ const skills = {
 							.set("ai", card => {
 								const vcard = new lib.element.VCard({ name: card.name, nature: card.nature, isCard: true });
 								const { player, target } = get.event();
-								return get.effect(target, vcard, player, player);
+								return get.effect(player.canUse(vcard, target, false) ? target : player, vcard, player, player);
 							})
 							.forResult()
 					: {
@@ -15423,9 +15430,9 @@ const skills = {
 			if (result?.bool && result.cards?.length) {
 				const cards = result.cards;
 				await player.showCards(cards, `${get.translation(player)}发动了【抗明】`);
-				const vcard = viewAs(cards[0]);
-				if (player.canUse(vcard, trigger.player, false)) {
-					await player.useCard(vcard, trigger.player, false);
+				const target = getTarget(cards[0]);
+				if (target) {
+					await player.useCard(viewAs(cards[0]), target, false);
 				}
 			} else {
 				await player.draw(3);
