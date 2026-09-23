@@ -8,6 +8,8 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.webkit.WebViewAssetLoader
 import com.getcapacitor.BridgeActivity
 
@@ -16,6 +18,11 @@ class MainActivity : BridgeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         registerPlugin(SafFsPlugin::class.java)
         super.onCreate(savedInstanceState)
+
+        // 系统栏被滑动唤出时只作临时显示，随后自动隐藏；默认行为会一直留在屏幕上挡住 WebView
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
 
         val webView = bridge.webView
         if (BuildConfig.DEBUG) {
