@@ -8831,8 +8831,8 @@ const skills = {
 						const self = lib.skill.dcbenxi;
 						let owned = self.getOwnedSkills(player);
 						if (owned.length >= self.limit) {
-							//已达上限，先弃置腾出位置，放弃弃置则失去这次机会
-							await self.discardSkills(player, 1);
+							//已达上限，把新技能一并列进候选，弃它即放弃获得
+							await self.discardSkills(player, 1, 1, true, skill);
 							owned = self.getOwnedSkills(player);
 						}
 						if (owned.length < self.limit) {
@@ -8935,15 +8935,23 @@ const skills = {
 		 *
 		 * @param {Player} player
 		 * @param {number} min 至少要弃置的数量，达不到时放弃发动
+		 * @param {number} [max] 至多能弃置的数量
+		 * @param {boolean} [forced] 是否连取消也不给（技能满时用来腾位置）
+		 * @param {string} [gain] 技能满时将要获得的新技能，一并列进候选，弃它即放弃获得
 		 * @returns {Promise<boolean>} 是否实际弃置了技能
 		 */
-		async discardSkills(player, min) {
+		async discardSkills(player, min, max = Infinity, forced = false, gain = "") {
 			const skills = lib.skill.dcbenxi.getOwnedSkills(player);
-			if (skills.length < min) {
+			const candidates = gain ? skills.concat(gain) : skills;
+			if (candidates.length < min) {
 				return false;
 			}
+			let prompt = `奔袭：弃置${max === 1 ? "一个" : "任意个"}技能，然后摸等量的牌`;
+			if (gain) {
+				prompt += `<br>即将获得<div><div class="skill">【${get.translation(gain)}】</div><div>${get.skillInfoTranslation(gain, player, false)}</div></div>弃置它即放弃获得该技能。`;
+			}
 			const result = await player
-				.chooseButton([`奔袭：弃置任意个技能，然后摸等量的牌`, [skills, "skill"]], [min, skills.length], true)
+				.chooseButton([prompt, [candidates, "skill"]], [min, max], forced)
 				.set("ai", button => {
 					const info = get.info(button.link);
 					return info?.ai?.neg || info?.ai?.halfneg ? 1 : 0;
@@ -8952,27 +8960,47 @@ const skills = {
 			if (!result?.bool || !result.links?.length) {
 				return false;
 			}
-			await player.removeSkills(result.links);
+			const links = result.links;
+			const lost = links.filter(skill => skills.includes(skill));
+			if (lost.length) {
+				await player.removeSkills(lost);
+			}
 			player.setStorage(
 				"dcbenxi_skills",
-				skills.filter(skill => !result.links.includes(skill))
+				skills.filter(skill => !links.includes(skill))
 			);
-			await player.draw(result.links.length);
+			await player.draw(links.length);
 			return true;
+		},
+		/**
+		 * 已获得的技能里有没有不值得留的负面技能
+		 *
+		 * @param {Player} player
+		 * @returns {boolean}
+		 */
+		hasBadSkill(player) {
+			return lib.skill.dcbenxi.getOwnedSkills(player).some(skill => {
+				const info = get.info(skill);
+				return info?.ai?.neg || info?.ai?.halfneg;
+			});
 		},
 		subSkill: {
 			qishe: {
 				charlotte: true,
-				trigger: { player: "phaseAnyBegin" },
+				enable: "phaseUse",
+				trigger: { player: ["phaseBefore", "phaseDiscardEnd"] },
+				prompt: "弃置任意个以此法获得的技能，然后摸等量的牌",
 				prompt2: "弃置任意个以此法获得的技能，然后摸等量的牌",
 				filter(event, player) {
 					return lib.skill.dcbenxi.getOwnedSkills(player).length > 0;
 				},
 				check(event, player) {
-					return lib.skill.dcbenxi.getOwnedSkills(player).some(skill => {
-						const info = get.info(skill);
-						return info?.ai?.neg || info?.ai?.halfneg;
-					});
+					return lib.skill.dcbenxi.hasBadSkill(player);
+				},
+				ai: {
+					order(item, player) {
+						return lib.skill.dcbenxi.hasBadSkill(player) ? 1 : -1;
+					},
 				},
 				async content(event, trigger, player) {
 					await lib.skill.dcbenxi.discardSkills(player, 1);
