@@ -76,7 +76,9 @@ git rebase --continue
 | `apps/core/game/config.json` | 默认启用的武将包只保留一部分；`extensions` 默认启用十周年UI、freeguozhan | 个人游玩偏好 |
 | `apps/core/.gitignore` | 新增 `!extension/freeguozhan/` 与 `!extension/freeguozhan/**` 两条白名单 | 让自建的自由国战扩展进入版本控制 |
 | `apps/core/character/collab/skill.js`<br>`apps/core/character/collab/translate.js` | 魂五虎（虎翼）的技能实现与描述 | 个人对技能效果的调整 |
+| `apps/core/character/collab/skill.js`<br>`apps/core/character/collab/translate.js` | 经典吴懿（奔袭）：获得的技能改为永久保留、至多同时 5 个，并可弃置换牌 | 个人对技能效果的调整 |
 | `apps/core/character/xianding/skill.js` | 谋骆统（抗明）：无法对使用者使用的牌改为对自己使用 | 修复这类牌选不了、用不出的问题 |
+| `apps/core/character/xianding/skill.js`<br>`apps/core/character/xianding/translate.js` | 神邓艾（险进）：激活副区域的条件改为按伤害点数累计 | 个人对技能效果的调整 |
 | `apps/mobile/capacitor.config.ts` | `SystemBars.hidden` 隐藏系统栏 | Android 15+ 强制 edge-to-edge 下状态栏覆盖 WebView 并拦截点击 |
 | `apps/mobile/android/app/build.gradle.kts` | versionCode/versionName 取构建时刻 | 每次构建版本号递增，可直接覆盖安装 |
 | `apps/mobile/buildAndroid.ts` | Windows 下用绝对路径调用 `gradlew.bat` | 本机 cmd 设了 `NoDefaultCurrentDirectoryInExePath=1`，裸文件名不再搜索当前目录 |

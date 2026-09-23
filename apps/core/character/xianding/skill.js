@@ -6969,15 +6969,23 @@ const skills = {
 			player: "damageEnd",
 			source: "damageSource",
 		},
-		filter(event, player, name) {
-			let history = game.getAllGlobalHistory("everything", evt => {
-				if (evt.name !== "damage" || !evt.player.getAllHistory("damage").includes(evt)) {
-					//这里是为了筛选掉被防止和取消的伤害事件
-					return false;
-				}
-				return evt.player === player || evt.source === player;
-			});
-			history = history
+		/**
+		 * 玩家造成或受到过的伤害，按结算顺序摊平成"造成""受到"两条视角
+		 *
+		 * 被防止或取消的伤害不计入
+		 *
+		 * @param {Player} player
+		 * @returns {Array<[GameEvent, string]>}
+		 */
+		getDamageHistory(player) {
+			return game
+				.getAllGlobalHistory("everything", evt => {
+					if (evt.name !== "damage" || !evt.player.getAllHistory("damage").includes(evt)) {
+						//这里是为了筛选掉被防止和取消的伤害事件
+						return false;
+					}
+					return evt.player === player || evt.source === player;
+				})
 				.map(evt => {
 					const list = [];
 					if (evt.source === player) {
@@ -6989,11 +6997,41 @@ const skills = {
 					return list;
 				})
 				.flat();
-			const list = history.find(lit => lit[0] === event && lit[1] === name);
-			return list && history.indexOf(list) % 2 === 1;
+		},
+		/**
+		 * 本次结算让累计伤害点数跨过了几个 2 点，每跨过一次激活一个副区域
+		 *
+		 * @param {GameEvent} event 伤害事件
+		 * @param {Player} player
+		 * @param {string} name 触发时机名
+		 * @returns {number}
+		 */
+		getActivateCount(event, player, name) {
+			let total = 0;
+			for (const [evt, type] of lib.skill.dcxianjin.getDamageHistory(player)) {
+				if (evt === event && type === name) {
+					return Math.floor((total + evt.num) / 2) - Math.floor(total / 2);
+				}
+				total += evt.num;
+			}
+			return 0;
+		},
+		filter(event, player, name) {
+			return lib.skill.dcxianjin.getActivateCount(event, player, name) > 0;
 		},
 		forced: true,
 		async content(event, trigger, player) {
+			const count = lib.skill.dcxianjin.getActivateCount(trigger, player, event.triggername);
+			for (let i = 0; i < count; i++) {
+				await lib.skill.dcxianjin.activate(player);
+			}
+		},
+		/**
+		 * 激活一个副区域标签，并摸牌
+		 *
+		 * @param {Player} player
+		 */
+		async activate(player) {
 			const tags = ["dctuoyu_fengtian", "dctuoyu_qingqu", "dctuoyu_junshan"];
 			tags.removeArray(player.getStorage("dctuoyu"));
 			if (tags.length > 0) {
@@ -7031,26 +7069,11 @@ const skills = {
 					if (!get.tag(card, "damage") || player.hasSkillTag("jueqing", false, target)) {
 						return;
 					}
-					const history = game.getAllGlobalHistory("everything", evt => {
-						if (evt.name !== "damage" || !evt.player.getAllHistory("damage").includes(evt)) {
-							//这里是为了筛选掉被防止和取消的伤害事件
-							return false;
-						}
-						return evt.player === player || evt.source === player;
-					});
-					if (
-						history.reduce((sum, evt) => {
-							if (evt.source === player) {
-								sum++;
-							}
-							if (evt.player === player) {
-								sum++;
-							}
-							return sum;
-						}, 0) %
-							2 ===
-						0
-					) {
+					const total = lib.skill.dcxianjin
+						.getDamageHistory(player)
+						.reduce((sum, [evt]) => sum + evt.num, 0);
+					//累计点数是奇数时，再来 1 点伤害就会跨过一次
+					if (total % 2 === 0) {
 						return;
 					}
 					if (player.isMaxHandcard()) {

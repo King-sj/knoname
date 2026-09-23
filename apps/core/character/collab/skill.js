@@ -8787,6 +8787,7 @@ const skills = {
 		},
 		forced: true,
 		zhuanhuanji: true,
+		group: "dcbenxi_qishe",
 		filter(event, player) {
 			const evt = event.getl(player);
 			return evt && evt.hs && evt.hs.length > 0;
@@ -8817,6 +8818,7 @@ const skills = {
 			} else {
 				const skill = player.storage.dcbenxi_pending;
 				if (skill) {
+					delete player.storage.dcbenxi_pending;
 					if (player.hasSkill(skill, null, false)) {
 						const targets = game.filterPlayer(current => current != player).sortBySeat();
 						player.line(targets, "fire");
@@ -8826,9 +8828,18 @@ const skills = {
 							}
 						}
 					} else {
-						await player.addTempSkills([skill], { player: "phaseBegin" });
+						const self = lib.skill.dcbenxi;
+						let owned = self.getOwnedSkills(player);
+						if (owned.length >= self.limit) {
+							//已达上限，先弃置腾出位置，放弃弃置则失去这次机会
+							await self.discardSkills(player, 1);
+							owned = self.getOwnedSkills(player);
+						}
+						if (owned.length < self.limit) {
+							await player.addSkills([skill]);
+							player.setStorage("dcbenxi_skills", owned.concat(skill));
+						}
 					}
-					delete player.storage.dcbenxi_pending;
 				}
 			}
 			player.markSkill(event.name);
@@ -8836,19 +8847,28 @@ const skills = {
 		onremove(player) {
 			delete player.storage.dcbenxi;
 			delete player.storage.dcbenxi_pending;
+			player.removeSkill(player.getStorage("dcbenxi_skills"));
+			delete player.storage.dcbenxi_skills;
 		},
 		mark: true,
 		marktext: "☯",
 		intro: {
 			mark(dialog, storage, player) {
-				if (storage) {
-					const skill = player.storage.dcbenxi_pending;
-					if (skill) {
-						dialog.addText(`锁定技，当你下次失去手牌后，你获得技能〖${get.translation(skill)}〗直到你的下回合开始。若已获得该技能，则改为对所有其他角色各造成1点伤害。`, false);
-						dialog.add('<div><div class="skill">【' + get.translation(lib.translate[skill + "_ab"] || get.translation(skill).slice(0, 2)) + "】</div><div>" + get.skillInfoTranslation(skill, player, false) + "</div></div>");
-					}
-				} else {
-					return "锁定技。当你下次失去手牌后，你随机念出一句拼音中含有“wu,yi”的台词。";
+				const owned = lib.skill.dcbenxi.getOwnedSkills(player);
+				if (owned.length) {
+					dialog.addText(
+						`已以此法获得${get.cnNumber(owned.length)}个技能（上限${get.cnNumber(lib.skill.dcbenxi.limit)}）：${owned.map(skill => `〖${get.translation(skill)}〗`).join("")}`,
+						false
+					);
+				}
+				if (!storage) {
+					dialog.addText("锁定技。当你下次失去手牌后，你随机念出一句拼音中含有“wu,yi”的台词。", false);
+					return;
+				}
+				const skill = player.storage.dcbenxi_pending;
+				if (skill) {
+					dialog.addText(`锁定技，当你下次失去手牌后，你获得技能〖${get.translation(skill)}〗。若已拥有该技能，则改为对所有其他角色各造成1点伤害。`, false);
+					dialog.add('<div><div class="skill">【' + get.translation(lib.translate[skill + "_ab"] || get.translation(skill).slice(0, 2)) + "】</div><div>" + get.skillInfoTranslation(skill, player, false) + "</div></div>");
 				}
 			},
 		},
@@ -8891,6 +8911,73 @@ const skills = {
 				});
 			}
 			return _status.dcbenxi_map;
+		},
+		/**
+		 * 通过本技能最多能同时持有的技能数
+		 */
+		limit: 5,
+		/**
+		 * 通过本技能获得的技能
+		 *
+		 * 顺带剔除已因其他原因失去的，免得继续占着上限
+		 *
+		 * @param {Player} player
+		 * @returns {string[]}
+		 */
+		getOwnedSkills(player) {
+			return player.setStorage(
+				"dcbenxi_skills",
+				player.getStorage("dcbenxi_skills").filter(skill => player.hasSkill(skill, null, false))
+			);
+		},
+		/**
+		 * 弃置任意个通过本技能获得的技能，然后摸等量的牌
+		 *
+		 * @param {Player} player
+		 * @param {number} min 至少要弃置的数量，达不到时放弃发动
+		 * @returns {Promise<boolean>} 是否实际弃置了技能
+		 */
+		async discardSkills(player, min) {
+			const skills = lib.skill.dcbenxi.getOwnedSkills(player);
+			if (skills.length < min) {
+				return false;
+			}
+			const result = await player
+				.chooseButton([`奔袭：弃置任意个技能，然后摸等量的牌`, [skills, "skill"]], [min, skills.length], true)
+				.set("ai", button => {
+					const info = get.info(button.link);
+					return info?.ai?.neg || info?.ai?.halfneg ? 1 : 0;
+				})
+				.forResult();
+			if (!result?.bool || !result.links?.length) {
+				return false;
+			}
+			await player.removeSkills(result.links);
+			player.setStorage(
+				"dcbenxi_skills",
+				skills.filter(skill => !result.links.includes(skill))
+			);
+			await player.draw(result.links.length);
+			return true;
+		},
+		subSkill: {
+			qishe: {
+				charlotte: true,
+				trigger: { player: "phaseAnyBegin" },
+				prompt2: "弃置任意个以此法获得的技能，然后摸等量的牌",
+				filter(event, player) {
+					return lib.skill.dcbenxi.getOwnedSkills(player).length > 0;
+				},
+				check(event, player) {
+					return lib.skill.dcbenxi.getOwnedSkills(player).some(skill => {
+						const info = get.info(skill);
+						return info?.ai?.neg || info?.ai?.halfneg;
+					});
+				},
+				async content(event, trigger, player) {
+					await lib.skill.dcbenxi.discardSkills(player, 1);
+				},
+			},
 		},
 	},
 	//新InitFilter测试高达一号
