@@ -80,6 +80,7 @@ git rebase --continue
 | `apps/core/character/xianding/skill.js` | 谋骆统（抗明）：无法对使用者使用的牌改为对自己使用 | 修复这类牌选不了、用不出的问题 |
 | `apps/core/character/xianding/skill.js`<br>`apps/core/character/xianding/translate.js` | 神邓艾（险进）：激活副区域的条件改为按伤害点数累计 | 个人对技能效果的调整 |
 | `apps/core/character/newjiang/skill.js`<br>`apps/core/character/newjiang/translate.js` | 新杀荀彧荀攸（智囊）：改为从三个候选技能中选一个获得；苟渚：失去锁定技时若体力值已满，改为摸两张牌 | 个人对技能效果的调整 |
+| `apps/core/character/bingshi/skill.js`<br>`apps/core/character/bingshi/translate.js` | 势赵云（武翊）：使用或打出过的基本牌、失去的手牌中的基本牌都计入牌名（技能、转换技视为使用或打出的也算） | 个人对技能效果的调整 |
 | `apps/mobile/android/app/src/main/java/com/libnoname/noname/MainActivity.kt` | 系统栏 behavior 设为 `BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE`（滑动唤出后临时显示、随即自动隐藏） | 默认 behavior 下滑动唤出的系统栏会一直挡住 WebView |
 | `apps/mobile/android/app/build.gradle.kts` | versionCode/versionName 取构建时刻 | 每次构建版本号递增，可直接覆盖安装 |
 | `apps/mobile/buildAndroid.ts` | Windows 下用绝对路径调用 `gradlew.bat` | 本机 cmd 设了 `NoDefaultCurrentDirectoryInExePath=1`，裸文件名不再搜索当前目录 |

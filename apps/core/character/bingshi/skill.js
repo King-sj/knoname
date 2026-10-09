@@ -21,13 +21,18 @@ const skills = {
 		},
 		init(player, skill) {
 			const names = player.getStorage(skill);
+			// 使用或打出过的基本牌，技能、转换技视为使用或打出的虚拟牌也算
+			for (const history of ["useCard", "respond"]) {
+				names.addArray(
+					player
+						.getHistory(history)
+						.filter(evt => get.type(evt.card) == "basic")
+						.map(evt => evt.card.name)
+				);
+			}
+			// 失去的手牌中的基本牌
 			player.countHistory("lose", evt => {
-				const evtx = evt.getParent();
-				const evt2 = evtx.relatedEvent || evtx.getParent();
-				if (evt.hs?.length) {
-					names.addArray(player.getHistory("useCard", evt3 => evt3.getParent() == evt2 && get.type(evt3.card) == "basic").map(evt3 => evt3.card.name));
-					names.addArray(player.getHistory("respond", evt3 => evt3.getParent() == evt2 && get.type(evt3.card) == "basic").map(evt3 => evt3.card.name));
-				}
+				if (evt.hs?.length) names.addArray(evt.hs.filter(card => get.type(card) == "basic").map(card => card.name));
 			});
 			if (names.length) {
 				names.unique();
@@ -44,7 +49,7 @@ const skills = {
 		trigger: { player: ["useCard", "respond"] },
 		filter(event, player) {
 			if (player.getStorage("potwuyi").length >= 4) return false;
-			return player.hasHistory("lose", evt => evt.getParent() == event && evt.hs?.length) && !player.getStorage("potwuyi").includes(event.card.name) && get.type(event.card) == "basic";
+			return get.type(event.card) == "basic" && !player.getStorage("potwuyi").includes(event.card.name);
 		},
 		async content(event, trigger, player) {
 			get.info(event.name).init(player, event.name);
@@ -55,14 +60,26 @@ const skills = {
 		},
 		intro: {
 			content(storage, player) {
-				if (!storage?.length) return "当前未使用或打出任何牌名的牌";
-				let str = `当前已使用或打出：${storage.map(name => get.translation(name)).join("")}`;
+				if (!storage?.length) return "当前没有计入的牌名";
+				let str = `当前已计入：${storage.map(name => get.translation(name)).join("")}`;
 				return str;
 			},
 		},
-		group: ["potwuyi_weijing", "potwuyi_gaoda"],
+		group: ["potwuyi_weijing", "potwuyi_gaoda", "potwuyi_lose"],
 		subSkill: {
 			round: { charlotte: true },
+			lose: {
+				charlotte: true,
+				silent: true,
+				trigger: { player: "loseAfter", global: "loseAsyncAfter" },
+				filter(event, player) {
+					if (player.getStorage("potwuyi").length >= 4) return false;
+					return event.getl?.(player)?.hs?.some(card => get.type(card) == "basic");
+				},
+				async content(event, trigger, player) {
+					get.info("potwuyi").init(player, "potwuyi");
+				},
+			},
 			weijing: {
 				audio: ["potwuyi5.mp3", "potwuyi6.mp3"],
 				enable: "chooseToUse",
