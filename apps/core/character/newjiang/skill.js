@@ -4188,7 +4188,7 @@ const skills = {
 			const type = get.type2(event.card),
 				name = `zhinang_${type}`,
 				skills = player.getRemovableAdditionalSkills(name);
-			let str = `获得一个技能${type == "trick" ? "台词" : "名"}包含“谋”的技能`;
+			let str = `从三个技能${type == "trick" ? "台词" : "名"}包含“谋”的技能中选择一个获得`;
 			if (skills.length) {
 				str = `失去${skills.map(skill => `【${get.translation(skill)}】`)}并${str}`;
 			}
@@ -4197,27 +4197,36 @@ const skills = {
 		keepSkill: true,
 		async content(event, trigger, player) {
 			const map = lib.skill.zhinang.getMap(),
-				type = get.type2(trigger.card) == "equip" ? "name" : "info",
+				cardType = get.type2(trigger.card),
+				type = cardType == "equip" ? "name" : "info",
 				list = Object.keys(map[type]);
-			if (list.length > 0) {
-				const skill = list.randomGet(),
-					voiceMap = get.Audio.skill({ skill, player: map[type][skill] }).audioList;
-				if (type == "info") {
-					findaudio: for (let data of voiceMap) {
-						if (!data.text) {
-							continue;
-						}
-						if (data.text.includes("谋")) {
-							player.chat(data.text);
-							game.broadcastAll(file => game.playAudio(file), data.file);
-							break findaudio;
-						}
-					}
-				} else {
-					player.flashAvatar("zhinang", map[type][skill]);
-				}
-				await player.addAdditionalSkills(`zhinang_${get.type2(trigger.card)}`, skill);
+			if (!list.length) {
+				return;
 			}
+			const result = await player
+				.chooseButton([`智囊：选择一个技能${cardType == "trick" ? "台词" : "名"}包含“谋”的技能`, [list.randomGets(3), "skill"]], true)
+				.set("ai", button => get.skillRank(button.link, "inout"))
+				.forResult();
+			if (!result?.bool || !result?.links?.length) {
+				return;
+			}
+			const skill = result.links[0],
+				voiceMap = get.Audio.skill({ skill, player: map[type][skill] }).audioList;
+			if (type == "info") {
+				findaudio: for (let data of voiceMap) {
+					if (!data.text) {
+						continue;
+					}
+					if (data.text.includes("谋")) {
+						player.chat(data.text);
+						game.broadcastAll(file => game.playAudio(file), data.file);
+						break findaudio;
+					}
+				}
+			} else {
+				player.flashAvatar("zhinang", map[type][skill]);
+			}
+			await player.addAdditionalSkills(`zhinang_${cardType}`, skill);
 		},
 		init(player, skill) {
 			player.addSkill(["zhinang_equip", "zhinang_trick"]);
@@ -4253,6 +4262,8 @@ const skills = {
 				let player = _status.event.player;
 				if (player.isDamaged()) {
 					await player.recover();
+				} else {
+					await player.draw(2);
 				}
 			},
 			觉醒技: async function () {
