@@ -73,14 +73,14 @@ git rebase --continue
 
 | 文件 / 目录 | 改动 | 原因 |
 | --- | --- | --- |
-| `apps/core/game/config.json` | 默认启用的武将包只保留一部分；`extensions` 默认启用十周年UI、freeguozhan | 个人游玩偏好 |
+| `apps/core/game/config.json` | 默认启用的武将包只保留一部分，另加入 `bingshi`（势赵云、势小乔在该包）；`extensions` 默认启用十周年UI、freeguozhan | 个人游玩偏好 |
 | `apps/core/.gitignore` | 新增 `!extension/freeguozhan/` 与 `!extension/freeguozhan/**` 两条白名单 | 让自建的自由国战扩展进入版本控制 |
-| `apps/core/character/collab/skill.js`<br>`apps/core/character/collab/translate.js` | 魂五虎（虎翼）的技能实现与描述 | 个人对技能效果的调整 |
-| `apps/core/character/collab/skill.js`<br>`apps/core/character/collab/translate.js` | 经典吴懿（奔袭）：获得的技能改为永久保留、至多同时 5 个，并可弃置换牌 | 个人对技能效果的调整 |
+| `apps/core/character/collab/skill.js`<br>`apps/core/character/collab/translate.js` | 魂五虎（虎翼）：技能实现与描述；回合结束时改为弃置任意个以此法获得的技能，再从亮出的牌堆顶 X+2 张中选择 X 张获得 | 个人对技能效果的调整 |
+| `apps/core/character/collab/skill.js`<br>`apps/core/character/collab/translate.js` | 经典吴懿（奔袭）：获得的技能永久保留、至多同时 5 个；弃技摸牌限回合开始前、出牌阶段与弃牌阶段结束时，已满 5 个时须弃一个才能收下新的（也可弃新技能放弃获得） | 个人对技能效果的调整 |
 | `apps/core/character/xianding/skill.js` | 谋骆统（抗明）：无法对使用者使用的牌改为对自己使用 | 修复这类牌选不了、用不出的问题 |
 | `apps/core/character/xianding/skill.js`<br>`apps/core/character/xianding/translate.js` | 神邓艾（险进）：激活副区域的条件改为按伤害点数累计 | 个人对技能效果的调整 |
-| `apps/mobile/capacitor.config.ts` | `SystemBars.hidden` 隐藏系统栏 | Android 15+ 强制 edge-to-edge 下状态栏覆盖 WebView 并拦截点击 |
-| `apps/mobile/android/app/src/main/java/com/libnoname/noname/MainActivity.kt` | 系统栏设为 `BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE` | 插件只调 `hide()` 不设 behavior，滑动唤出的系统栏会一直挡住 WebView |
+| `apps/core/character/newjiang/skill.js`<br>`apps/core/character/newjiang/translate.js` | 新杀荀彧荀攸（智囊）：改为从三个候选技能中选一个获得；苟渚：失去锁定技时若体力值已满，改为摸两张牌 | 个人对技能效果的调整 |
+| `apps/mobile/android/app/src/main/java/com/libnoname/noname/MainActivity.kt` | 系统栏 behavior 设为 `BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE`（滑动唤出后临时显示、随即自动隐藏） | 默认 behavior 下滑动唤出的系统栏会一直挡住 WebView |
 | `apps/mobile/android/app/build.gradle.kts` | versionCode/versionName 取构建时刻 | 每次构建版本号递增，可直接覆盖安装 |
 | `apps/mobile/buildAndroid.ts` | Windows 下用绝对路径调用 `gradlew.bat` | 本机 cmd 设了 `NoDefaultCurrentDirectoryInExePath=1`，裸文件名不再搜索当前目录 |
 
