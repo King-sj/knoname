@@ -8685,7 +8685,7 @@ const skills = {
 					})
 				) {
 					characters.push(_status.characterlist[i]);
-					if (characters.length >= 6) {
+					if (characters.length >= 10) {
 						break;
 					}
 				}
@@ -8693,43 +8693,33 @@ const skills = {
 			if (characters.length < 2) {
 				return;
 			}
-			const first = characters.slice(0, characters.length / 2),
-				last = characters.slice(characters.length / 2, 6);
-			const skills1 = [],
-				skills2 = [];
-			for (let i of first) {
-				skills1.push(
-					get
-						.character(i, 3)
-						.filter(skill => {
-							return lib.skill[skill] && !lib.skill[skill].charlotte;
-						})
-						.randomGet()
-				);
-			}
-			for (let i of last) {
-				skills2.push(
-					get
-						.character(i, 3)
-						.filter(skill => {
-							return lib.skill[skill] && !lib.skill[skill].charlotte;
-						})
-						.randomGet()
-				);
-			}
+			const count = Math.min(5, Math.floor(characters.length / 2)),
+				first = characters.slice(0, count),
+				last = characters.slice(count, count * 2);
+			const getSkills = name =>
+				get.character(name, 3).filter(skill => {
+					return lib.skill[skill] && !lib.skill[skill].charlotte;
+				});
+			const getButton = name => {
+				const skills = getSkills(name)
+					.map(skill => `<div class="skill">〖${get.translation(skill)}〗</div><div>${get.skillInfoTranslation(skill, player, false) || ""}</div>`)
+					.join("");
+				return [name, `<div class="popup text" style="width:calc(100% - 10px);display:inline-block"><div class="skill">【${get.translation(name)}】</div>${skills}</div>`];
+			};
+			const getRank = name => getSkills(name).reduce((num, skill) => num + Math.max(0, get.skillRank(skill, "inout")), 0);
 			const result1 = await player
-				.chooseControl(skills1)
-				.set("dialog", ["无名：请选择姓氏", [first, "character"]])
+				.chooseButton(["无名：请选择姓氏（获得其所有技能）", [first.map(getButton), "textbutton"]], true)
+				.set("ai", button => getRank(button.link))
 				.forResult();
-			const gains = [];
-			let surname = first[skills1.indexOf(result1.control)];
-			gains.add(result1.control);
+			const surname = result1.links[0];
 			const result2 = await player
-				.chooseControl(skills2)
-				.set("dialog", ["无名：请选择名字", [last, "character"]])
+				.chooseButton(["无名：请选择名字（获得其所有技能）", [last.map(getButton), "textbutton"]], true)
+				.set("ai", button => getRank(button.link))
 				.forResult();
-			let name = last[skills2.indexOf(result2.control)];
-			gains.add(result2.control);
+			const name = result2.links[0];
+			const gains = [];
+			gains.addArray(getSkills(surname));
+			gains.addArray(getSkills(name));
 			let newname = get.characterSurname(surname).randomGet()[0] + get.characterSurname(name).randomGet()[1];
 			if (newname === "某") {
 				newname = "无名氏";

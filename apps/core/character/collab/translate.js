@@ -205,7 +205,7 @@ const translates = {
 	dchuanli_info: `结束阶段，若你本回合：使用牌至少指定三次自己为目标，则你可以令一名其他角色的所有技能失效，然后其获得${get.poptip("zhijian")}和${get.poptip("guzheng")}，直到其下回合结束；使用牌至少指定三次一名其他角色为目标，则你可以令其所有技能失效，然后其获得${get.poptip("reyingzi")}和${get.poptip("refanjian")}，直到其下回合结束。然后若你两项均执行，你获得${get.poptip("rezhiheng")}直到你的下个回合结束。`,
 	dc_noname: "无名",
 	dcchushan: "出山",
-	dcchushan_info: "锁定技，游戏开始时，你获得两个武将的各一个技能，并将你的武将名改为这两个武将的名字组合。",
+	dcchushan_info: "锁定技，游戏开始时，你从五个武将中选择一个作为姓氏、从五个武将中选择一个作为名字，获得这两个武将的所有技能，并将你的武将名改为这两个武将的名字组合。",
 	wuhujiang: "五虎",
 	wuhujiang_ab: "魂五虎",
 	wuhujiang_prefix: "魂",
